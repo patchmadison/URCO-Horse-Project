@@ -1,0 +1,130 @@
+This is cutadapt 4.0 with Python 3.9.12
+Command line parameters: -g ACGTCTGGTTCAGGGTTGTT -a AGCGGAGGAAAAGAAACTAA -G TTAGTTTCTTTTCCTCCGCT -A AACAACCCTGAACCAGACGT -n 2 --discard-untrimmed -o C:/Users/madis/OneDrive/Documents/URCO-Horse-Project/Miseq_Run/cutadapt/BZ13F_S12_R1_001.fastq.gz -p C:/Users/madis/OneDrive/Documents/URCO-Horse-Project/Miseq_Run/cutadapt/BZ13F_S12_R2_001.fastq.gz C:/Users/madis/OneDrive/Documents/URCO-Horse-Project/Miseq_Run/BZ13F_S12_R1_001.fastq.gz C:/Users/madis/OneDrive/Documents/URCO-Horse-Project/Miseq_Run/BZ13F_S12_R2_001.fastq.gz
+Processing paired-end reads on 1 core ...
+Finished in 3.57 s (166 µs/read; 0.36 M reads/minute).
+
+=== Summary ===
+
+Total read pairs processed:             21,535
+  Read 1 with adapter:                  20,359 (94.5%)
+  Read 2 with adapter:                  20,742 (96.3%)
+
+== Read fate breakdown ==
+Pairs discarded as untrimmed:            1,492 (6.9%)
+Pairs written (passing filters):        20,043 (93.1%)
+
+Total basepairs processed:    10,123,212 bp
+  Read 1:     5,060,843 bp
+  Read 2:     5,062,369 bp
+Total written (filtered):      8,752,076 bp (86.5%)
+  Read 1:     4,374,547 bp
+  Read 2:     4,377,529 bp
+
+=== First read: Adapter 1 ===
+
+Sequence: ACGTCTGGTTCAGGGTTGTT; Type: regular 5'; Length: 20; Trimmed: 19248 times
+
+Minimum overlap: 3
+No. of allowed errors:
+1-9 bp: 0; 10-19 bp: 1; 20 bp: 2
+
+Overview of removed sequences
+length	count	expect	max.err	error counts
+17	1	0.0	1	1
+18	1	0.0	1	1
+19	25	0.0	1	1 12 12
+20	9347	0.0	2	9135 194 18
+21	9861	0.0	2	9691 165 5
+22	12	0.0	2	5 7
+23	1	0.0	2	1
+
+
+=== First read: Adapter 2 ===
+
+Sequence: AGCGGAGGAAAAGAAACTAA; Type: regular 3'; Length: 20; Trimmed: 1111 times
+
+Minimum overlap: 3
+No. of allowed errors:
+1-9 bp: 0; 10-19 bp: 1; 20 bp: 2
+
+Bases preceding removed adapters:
+  A: 9.2%
+  C: 46.9%
+  G: 13.0%
+  T: 31.0%
+  none/other: 0.0%
+
+Overview of removed sequences
+length	count	expect	max.err	error counts
+3	25	336.5	0	25
+18	11	0.0	1	0 0 11
+19	37	0.0	1	0 19 18
+20	70	0.0	2	5 55 10
+21	72	0.0	2	10 40 22
+22	25	0.0	2	4 15 6
+23	63	0.0	2	0 61 2
+24	84	0.0	2	0 75 9
+25	12	0.0	2	0 7 5
+26	45	0.0	2	20 19 6
+27	69	0.0	2	16 40 13
+28	208	0.0	2	3 61 144
+29	286	0.0	2	0 43 243
+30	101	0.0	2	0 4 97
+32	1	0.0	2	0 0 1
+41	1	0.0	2	0 0 1
+244	1	0.0	2	0 1
+
+
+=== Second read: Adapter 3 ===
+
+Sequence: TTAGTTTCTTTTCCTCCGCT; Type: regular 5'; Length: 20; Trimmed: 20739 times
+
+Minimum overlap: 3
+No. of allowed errors:
+1-9 bp: 0; 10-19 bp: 1; 20 bp: 2
+
+Overview of removed sequences
+length	count	expect	max.err	error counts
+3	3	336.5	0	3
+9	1	0.1	0	1
+14	1	0.0	1	1
+18	23	0.0	1	0 0 23
+19	339	0.0	1	12 177 150
+20	11228	0.0	2	9982 811 435
+21	9047	0.0	2	8189 593 265
+22	27	0.0	2	1 11 15
+23	3	0.0	2	0 0 3
+24	1	0.0	2	0 0 1
+41	3	0.0	2	0 1 2
+43	1	0.0	2	1
+57	2	0.0	2	0 1 1
+59	1	0.0	2	1
+60	2	0.0	2	1 1
+61	17	0.0	2	8 4 5
+62	32	0.0	2	6 15 11
+63	8	0.0	2	0 5 3
+
+
+=== Second read: Adapter 4 ===
+
+Sequence: AACAACCCTGAACCAGACGT; Type: regular 3'; Length: 20; Trimmed: 59 times
+
+Minimum overlap: 3
+No. of allowed errors:
+1-9 bp: 0; 10-19 bp: 1; 20 bp: 2
+
+Bases preceding removed adapters:
+  A: 15.3%
+  C: 47.5%
+  G: 3.4%
+  T: 33.9%
+  none/other: 0.0%
+
+Overview of removed sequences
+length	count	expect	max.err	error counts
+3	50	336.5	0	50
+4	3	84.1	0	3
+5	3	21.0	0	3
+7	1	1.3	0	1
+11	1	0.0	1	0 1
+19	1	0.0	1	0 0 1
