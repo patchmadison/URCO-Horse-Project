@@ -435,7 +435,7 @@ plot_bar(subset_samples(psa, Sample_type == "Larva"), x= "Sample_name")
 
 ps_final <- subset_samples(psa, sample_sums(psa) > 1000)
 
-
+saveRDS(ps_final, "ps_final_12Sept24.rds")
 
 
 #meta_df1 <- data.frame(sample_data(psa))
