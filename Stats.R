@@ -10,6 +10,7 @@ library(vegan)
 set.seed(106)
 
 
+
 # loading in RDS objects
 ps_final <- readRDS("ps_final_12Sept24.rds")
 metadata <- read.csv("metadata_29Aug24.csv")
@@ -19,14 +20,86 @@ psa <- readRDS("psa_filtered_29Aug24.rds")
 metadata <- metadata[,-1]
 row.names(metadata) <- metadata$Sample_name
 metadata$X._of_L3_counts
-
 colnames(metadata)[colnames(metadata) == "X._of_L3_counts"] <- "Number_of_L3_counts"
 
 ## redefine metadata in ps final and psa objects
 
 sample_data(ps_final) <- metadata
-
 sample_data(psa) <- metadata
+
+## double centrifugation vs mcmaster 
+## wet weight for each, then divide double centrifugation by gram, then by dry gram?
+
+dc_vs_mcm_epg <- ggplot(data = sample_data(psa), mapping = aes(x = DC_egg_count / Wet_weight_dc_egg_count, y = EPG, label = Host)) +
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  geom_text(nudge_x = 5, nudge_y = 10, size = 3)+
+  labs(title = "Double centrifugation Egg count vs McMaster EPG", y = "McMaster EPG", x = "Double Centrifugation EPG" )
+dc_vs_mcm_epg
+
+
+ggplot(data = sample_data(psa), aes(x = Host, y = DC_egg_count)) +
+  geom_dotplot(binaxis = "y", stackdir = "down") +
+  labs(title = "Comparison of Variable 1 by Host")
+
+## TODO: larval counts vs egg counts
+L3_count_vs_EPG <- ggplot(data = sample_data(psa), mapping = aes(x = L3_count_sum / Number_of_L3_counts, y = EPG, label = Host)) +
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  geom_text(nudge_x = 0.3, nudge_y = 10, size = 3)+
+  labs(title = "Average L3 count vs McMaster EPG", y = "McMaster EPG", x = "Avg L3 count" )
+L3_count_vs_EPG
+
+L3_count_vs_dry_EPG <- ggplot(data = sample_data(psa), mapping = aes(x = L3_count_sum / Number_of_L3_counts, y = EPG * Percent_dry, label = Host)) +
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  geom_text(nudge_x = 0.3, nudge_y = 2, size = 3)+
+  labs(title = "Average L3 count vs McMaster Dry EPG", y = "McMaster Dry EPG", x = "Avg L3 count" )
+L3_count_vs_dry_EPG
+
+L3_count_vs_dc_egg_count <- ggplot(data = sample_data(psa), mapping = aes(x = L3_count_sum / Number_of_L3_counts, y = DC_egg_count * Percent_dry, label = Host)) +
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  geom_text(nudge_x = 0.3, nudge_y = 2, size = 3)+
+  labs(title = "Average L3 count vs McMaster Dry EPG", y = "McMaster Dry EPG", x = "Avg L3 count" )
+L3_count_vs_dc_egg_count
+## TODO: dry weights vs wet weights
+
+dry_vs_wet <- ggplot(data = sample_data(psa), mapping = aes(x = Dry_weight, y = Wet_weight)) +
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  labs(title = "Dry weight vs wet weight")
+
+dry_vs_wet
+
+dry_hist <- ggplot(data = sample_data(psa), mapping = aes(x = Dry_weight)) +
+  geom_histogram(bins = 10)+
+  labs(title = "Dry weight distribution")
+dry_hist
+
+
+dry_perc_hist <- ggplot(data = sample_data(psa), mapping = aes(x = Percent_dry)) +
+  geom_histogram(bins = 15)+
+  labs(title = "Percent dry weight distribution")
+dry_perc_hist
+
+dry_perc_vs_epg <- ggplot(data = sample_data(psa), mapping = aes(x = Percent_dry, y = EPG)) +
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  labs(title = "Percent Dry weight vs EPG")
+dry_perc_vs_epg
+
+
+
+
+## TODO: Qubit vs epg by methods
+
+qubitxepgxmethod <- ggplot(data = sample_data(psa), mapping = aes(x = EPG, y = Qubit, color = Sample_type)) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  labs(title = "Qubit by Eggs Per Gram Grouped by Method")
+qubitxepgxmethod
+
 
 
 
