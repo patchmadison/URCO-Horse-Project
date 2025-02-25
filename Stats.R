@@ -120,18 +120,25 @@ epg_data <- read.csv("EPG_data_2Oct24.csv")
 
 
 ## reads by method and dry DC epg
-readsxepgxmethod <- ggplot(data = metadata, mapping = aes(x = EPG_DC_dry, y = Reads, color = Sample_type)) +
+readsxepgxmethod <- ggplot(data = metadata_final, mapping = aes(x = EPG_DC_dry, y = Reads, color = Sample_type)) +
   geom_point() +
   geom_smooth(method = 'lm') +
   labs(title = "Number of Reads by Eggs Per Gram Grouped by Method", x = 'Eggs Per Gram')+
   theme_bw()
 readsxepgxmethod
 
-readsxepgxmethod_aov <- aov(Reads ~ EPG_DC_dry * Sample_type, data = metadata)
-summary(readsxepgxmethod_aov)
-TukeyHSD(readsxepgxmethod_aov)
+readsxmethod_aov <- aov(Reads ~  Sample_type, data = metadata_final)
+summary(readsxmethod_aov)
+TukeyHSD(readsxmethod_aov)
+ ## need to change the plot to a box plot instead 
 
+readsxepgxmethodmdl <- aov(Reads ~ Sample_type * EPG_DC_dry, data = metadata_final)
+summary(readsxepgxmethodmdl)
 
+readsxmethodmdl <- aov(Reads ~ Sample_type, data = metadata_final)
+summary(readsxmethodmdl)
+
+anova(readsxmethodmdl, readsxepgxmethodmdl) ## not significant difference when EPG added p = 0.057
 
 
 ## might do more graphs later 
