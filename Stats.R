@@ -141,6 +141,10 @@ summary(readsxmethodmdl)
 anova(readsxmethodmdl, readsxepgxmethodmdl) ## not significant difference when EPG added p = 0.057
 
 
+
+
+
+
 ## might do more graphs later 
 ##but now onto diversity!
 
@@ -752,6 +756,11 @@ sd(dry_weight_df[,'Dry_weight'])  # sd 0.524
 mean(1-dry_weight_df[,'Percent_dry']) # mean 0.7137
 sd(1-dry_weight_df[,'Percent_dry'])  # sd 0.054
 
+max(1-dry_weight_df[,'Percent_dry']) # max 79.88 %
+min(1-dry_weight_df[,'Percent_dry']) # min 0.5926
+
+# mean, sd and range of epg
+
 
 # mean and sd of richness by method
 
@@ -789,6 +798,38 @@ mean(larva_df[,'Richness_g'])    # larva g   6.154
 sd(larva_df[,'Richness_g'])      # sd   1.281
 
 
+
+# sample richness by host 
+ps_host_asv <- merge_samples(ps_rarified, 'Host')
+otu_table(ps_host_asv) <- otu_table(ps_host_asv) > 0
+otu_table(ps_host_asv) <- otu_table(ps_host_asv) * 1
+asvxhost<- data.frame(sample_sums(ps_host_asv))
+
+ps_host_sp <- merge_samples(ps_rarified_sp, 'Host')
+otu_table(ps_host_sp) <- otu_table(ps_host_sp) > 0
+otu_table(ps_host_sp) <- otu_table(ps_host_sp) * 1
+spxhost <- data.frame(sample_sums(ps_host_sp))
+
+ps_host_g <- merge_samples(ps_rarified_g, 'Host')
+otu_table(ps_host_g) <- otu_table(ps_host_g) > 0
+otu_table(ps_host_g) <- otu_table(ps_host_g) * 1
+gxhost <- data.frame(sample_sums(ps_host_g))
+
+
+mean(asvxhost[,1]) # asv by host mean 58.30769
+sd(asvxhost[,1]) # asv by host sd 22.01282
+
+mean(spxhost[,1]) # sp by host mean 11.38462
+sd(spxhost[,1]) # sp by host sd 2.56705
+
+mean(gxhost[,1]) # g by host mean 6.769231
+sd(gxhost[,1]) # g by host sd 1.165751
+
+
+tax_table_g <- as.data.frame(tax_table(ps_host_g))%>%
+  rownames_to_column("ASV")
+df_g_presence <- as.data.frame(otu_table(ps_host_g))
+colnames(df_g_presence) <- c(tax_table_g[,'genus'])
 
 
 
