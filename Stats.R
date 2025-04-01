@@ -230,6 +230,40 @@ summary(g_poisson)
 g_emmeans <- emmeans(g_poisson, pairwise ~ Sample_type)
 summary(g_emmeans)
 
+
+
+
+# testing model significance asv
+asvxepgxmethodmdl <- aov(Richness_asv ~ Sample_type + EPG_DC_dry, data = metadata_rarefied)
+summary(asvxepgxmethodmdl)
+
+asvxmethodmdl <- aov(Richness_asv ~ Sample_type, data = metadata_rarefied)
+summary(asvxmethodmdl)
+
+anova(asvxmethodmdl, asvxepgxmethodmdl) # significant difference p = 0.0001887
+
+# testing model significance sp
+spxepgxmethodmdl <- aov(Richness_sp ~ Sample_type + EPG_DC_dry, data = metadata_rarefied)
+summary(spxepgxmethodmdl)
+
+spxmethodmdl <- aov(Richness_sp ~ Sample_type, data = metadata_rarefied)
+summary(spxmethodmdl)
+
+anova(spxmethodmdl, spxepgxmethodmdl) # significant difference p = 0.001988
+
+# testing model significance g
+gxepgxmethodmdl <- aov(Richness_g ~ Sample_type + EPG_DC_dry, data = metadata_rarefied)
+summary(gxepgxmethodmdl)
+
+gxmethodmdl <- aov(Richness_g ~ Sample_type, data = metadata_rarefied)
+summary(gxmethodmdl)
+
+anova(gxmethodmdl, gxepgxmethodmdl) # significant difference p = 0.00524
+
+
+
+
+
 # alllllll evenness Pielou
 evennessxmethod_asv <- ggplot(data = metadata_rarefied, mapping = aes(x = Sample_type, y = Evenness_asv)) 
 evennessxmethod_asv + geom_boxplot()+
@@ -740,7 +774,9 @@ for (species in present_species_vector){
 }
 
 
-
+fecal_df <- metadata_final[metadata_final[,'Sample_type'] == 'Fecal', ]
+swab_df <- metadata_final[metadata_final[,'Sample_type'] == 'Swab', ]
+larva_df <- metadata_final[metadata_final[,'Sample_type'] == 'Larva', ]
 
 
 # mean and sd of wet/dry weights
@@ -761,12 +797,47 @@ min(1-dry_weight_df[,'Percent_dry']) # min 0.5926
 
 # mean, sd and range of epg
 
+epg_df <- unique(metadata_rarefied[c('Host', 'EPG_McM_wet', 'EPG_DC_wet')])
+
+min(epg_df[,'EPG_McM_wet']) # min 0
+max(epg_df[, 'EPG_McM_wet']) #max 200
+
+mean(epg_df[,'EPG_McM_wet']) # mean 57.84615
+sd(epg_df[,'EPG_McM_wet']) # sd 62.75063
+
+min(epg_df[,'EPG_DC_wet']) # min  0.6472
+max(epg_df[, 'EPG_DC_wet']) #max  107.667
+
+mean(epg_df[,'EPG_DC_wet']) # mean  29.896
+sd(epg_df[,'EPG_DC_wet']) # sd  33.63558
+
+
+# mean, sd and range of reads by method
+
+min(fecal_df[,'Reads']) # min 0
+max(fecal_df[, 'Reads']) # max 20914
+
+mean(fecal_df[, 'Reads']) # mean 10795.54
+sd(fecal_df[, 'Reads']) # sd 6656.37
+
+min(swab_df[,'Reads']) # min 201
+max(swab_df[, 'Reads']) # max 26864
+
+mean(swab_df[, 'Reads']) # mean 16914.31
+sd(swab_df[, 'Reads']) # sd 8447.56
+
+min(larva_df[,'Reads']) # min 12168
+max(larva_df[, 'Reads']) # max 23419
+
+mean(larva_df[, 'Reads']) # mean 18572.69
+sd(larva_df[, 'Reads']) # sd 3730.49
+
 
 # mean and sd of richness by method
 
-fecal_df <- metadata_rarefied[metadata_rarefied[,'Sample_type'] == 'Fecal', c(20:28)]
-swab_df <- metadata_rarefied[metadata_rarefied[,'Sample_type'] == 'Swab', c(20:28)]
-larva_df <- metadata_rarefied[metadata_rarefied[,'Sample_type'] == 'Larva', c(20:28)]
+fecal_df <- metadata_rarefied[metadata_rarefied[,'Sample_type'] == 'Fecal', ]
+swab_df <- metadata_rarefied[metadata_rarefied[,'Sample_type'] == 'Swab', ]
+larva_df <- metadata_rarefied[metadata_rarefied[,'Sample_type'] == 'Larva', ]
 
 mean(fecal_df[,'Richness_asv'])  # fecal ASVs  15.5833
 sd(fecal_df[,'Richness_asv'])    # sd 10.526
@@ -1057,7 +1128,7 @@ TukeyHSD(qubitxepgxmethod_aov)
 
 
 # boxplot of reads by method
-readsxmethod <- ggplot(data = meta_df, mapping = aes(x = Sample_type, y = Reads)) 
+readsxmethod <- ggplot(data = metadata_final, mapping = aes(x = Sample_type, y = Reads)) 
 readsxmethod + geom_boxplot()+
   geom_dotplot(binaxis = "y", stackdir = "center", dotsize = .5, fill = "red")+
   labs(title = "# of Reads by Processing Method",
