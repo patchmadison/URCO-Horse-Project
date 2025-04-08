@@ -13,6 +13,7 @@ library(emmeans)
 library(lme4)
 library(tidyverse)
 library(vegan)
+library(betareg)
 set.seed(106)
 
 
@@ -217,6 +218,8 @@ richnessxmethod_g + geom_boxplot()+
        x = "Processing Method", y = "Richness (# of genera)")
 
 
+
+## try a plot?
 asv_poisson <- glm(Richness_asv ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
 summary(asv_poisson)
 asv_emmeans <- emmeans(asv_poisson, pairwise ~ Sample_type)
@@ -230,7 +233,29 @@ summary(g_poisson)
 g_emmeans <- emmeans(g_poisson, pairwise ~ Sample_type)
 summary(g_emmeans)
 
+richness_asvxepgxmethod <- ggplot(data = metadata_rarefied, mapping = aes(x = EPG_DC_dry, y = Richness_asv, color = Sample_type)) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  labs(title = "Number of Unique ASVs by Eggs Per Gram Grouped by Method", x = 'Eggs Per Gram')+
+  theme_bw()
+richness_asvxepgxmethod
 
+richness_spxepgxmethod <- ggplot(data = metadata_rarefied, mapping = aes(x = EPG_DC_dry, y = Richness_sp, color = Sample_type)) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  labs(title = "Number of Unique ASVs by Eggs Per Gram Grouped by Method", x = 'Eggs Per Gram')+
+  theme_bw()
+richness_spxepgxmethod
+
+richness_gxepgxmethod <- ggplot(data = metadata_rarefied, mapping = aes(x = EPG_DC_dry, y = Richness_g, color = Sample_type)) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  labs(title = "Number of Unique ASVs by Eggs Per Gram Grouped by Method", x = 'Eggs Per Gram')+
+  theme_bw()
+richness_gxepgxmethod
+
+### Richness ~ sample_type * EPG vs Richness ~ sample_type + EPG
+## no significant difference 
 
 
 # testing model significance asv
@@ -399,7 +424,7 @@ evennessxmethod_g + geom_boxplot()+
   labs(title = "Evenness by Processing Method",
        x = "Processing Method", y = "Evenness of genera")
 
-summary(betareg(Evenness_g ~ Sample_type,data = metadata_rarefied))
+summary(betareg(Evenness_sp ~ Sample_type,data = metadata_rarefied))
 
 
 
@@ -423,6 +448,43 @@ ggplot(df_long_raw, mapping = aes(x= Sample_type, y = `Diversity Values`)) +
 # methods overlap or have differing groups of detectable species
 # plots of percentage of samples that have specific genus, species, or asv
 # ^ all methods would be combined into one to have just host
+
+## trying something
+ps_sp <- ps_final_sp
+otu_table(ps_sp) <- otu_table(ps_sp) > 0
+otu_table(ps_sp) <- otu_table(ps_sp) * 1
+
+ps_method_sp <- merge_samples(ps_sp, 'Sample_type')
+
+
+df_sp <- as.data.frame(otu_table(ps_method_sp))
+
+df_merged_sp <- as.data.frame(otu_table(ps_merged_sp))
+
+df_merged_sp['Host_total',] <- colSums(df_merged_sp)
+
+df_sp['Host_total',] <- df_merged_sp['Host_total',]
+
+df_sp_long_perc <- c()
+
+for (i in 1:length(df_sp)){
+  fecal_percent <- df_sp['Fecal',i]/df_sp['Host_total',i]
+  larva_percent <- df_sp['Larva',i]/df_sp['Host_total',i]
+  swab_percent <- df_sp['Swab',i]/df_sp['Host_total',i]
+  df_sp_long_perc$Method <- c(df_sp_long_perc$Method, 'fecal', 'larva', 'swab')
+  df_sp_long_perc$Host_perc <- c(df_sp_long_perc$Host_perc, fecal_percent, larva_percent, swab_percent)
+}
+asvs <- NULL
+for (asv in colnames(df_sp)) {asvs <- c(asvs, rep(asv,3))}
+df_sp_long_perc$asv <- asvs
+df_sp_long_perc <- as.data.frame(df_sp_long_perc)
+
+detectionxmethod_sp <- ggplot(data = df_sp_long_perc, mapping = aes(x = Method, y = Host_perc)) 
+detectionxmethod_sp + geom_boxplot()+
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = .5, fill = 'red')+
+  labs(title = "Detection by Processing Method",
+       x = "Processing Method", y = "Percentage of hosts species detected in ")
+
 
 
 # each final phyloseq glommed at different levels
@@ -867,6 +929,33 @@ sd(larva_df[,'Richness_sp'])     # sd    2.764
 
 mean(larva_df[,'Richness_g'])    # larva g   6.154
 sd(larva_df[,'Richness_g'])      # sd   1.281
+
+
+
+fecal_df <- df_sp_long_perc[df_sp_long_perc[,'Method'] == 'fecal', ]
+swab_df <- df_sp_long_perc[df_sp_long_perc[,'Method'] == 'swab', ]
+larva_df <- df_sp_long_perc[df_sp_long_perc[,'Method'] == 'larva', ]
+
+
+min(fecal_df[,'Host_perc']) # min 0
+max(fecal_df[, 'Host_perc']) # max 100
+
+mean(fecal_df[, 'Host_perc']) # mean 22.85
+sd(fecal_df[, 'Host_perc']) # sd 26.87
+
+min(swab_df[,'Host_perc']) # min 0
+max(swab_df[, 'Host_perc']) # max 100
+
+mean(swab_df[, 'Host_perc']) # mean 57.08
+sd(swab_df[, 'Host_perc']) # sd 26.67
+
+min(larva_df[,'Host_perc']) # min 60.00
+max(larva_df[, 'Host_perc']) # max 100
+
+mean(larva_df[, 'Host_perc']) # mean 88.75
+sd(larva_df[, 'Host_perc']) # sd 13.24
+
+
 
 
 
