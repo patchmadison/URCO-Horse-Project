@@ -14,6 +14,8 @@ library(lme4)
 library(tidyverse)
 library(vegan)
 library(betareg)
+library(statmod)
+library(multcomp)
 set.seed(106)
 
 
@@ -479,11 +481,31 @@ for (asv in colnames(df_sp)) {asvs <- c(asvs, rep(asv,3))}
 df_sp_long_perc$asv <- asvs
 df_sp_long_perc <- as.data.frame(df_sp_long_perc)
 
+df_sp_long_perc$Method <- factor(df_sp_long_perc$Method, c("fecal", "swab", "larva"))
+
 detectionxmethod_sp <- ggplot(data = df_sp_long_perc, mapping = aes(x = Method, y = Host_perc)) 
 detectionxmethod_sp + geom_boxplot()+
   geom_dotplot(binaxis = "y", stackdir = "center", dotsize = .5, fill = 'red')+
   labs(title = "Detection by Processing Method",
        x = "Processing Method", y = "Percentage of hosts species detected in ")
+
+detectionxmethod_sp <- ggplot(data = df_sp_long_perc, mapping = aes(x = Method, y = Host_perc, color = asv))  
+
+detectionxmethod_sp +  
+  geom_boxplot() + 
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = .5, fill = 'red') + 
+  geom_line(aes(group = asv), alpha = 0.7) +  # Slight transparency for readability 
+  labs(title = "Detection by Processing Method", 
+       x = "Processing Method", y = "Percentage of hosts species detected") + 
+  scale_color_manual(values = rainbow(length(unique(df_sp_long_perc$asv)))) # Assigns a different color to each asv 
+
+
+perc_stats <- betareg(Host_perc ~ Method,data = df_sp_long_perc)
+summary(perc_stats)
+
+emmeans(perc_stats, pairwise ~ Method)
+glht(perc_stats)
+
 
 
 
@@ -622,7 +644,7 @@ otu_table(ps_presence_sp) <- otu_table(ps_presence_sp) > 0
 otu_table(ps_presence_sp) <- otu_table(ps_presence_sp) * 1
 
 
-
+df_epg_host <- unique(metadata_rarefied[,c('Host','EPG_DC_dry')])
 
 
 df_presence_sp <- as.data.frame(otu_table(ps_presence_sp))
@@ -658,7 +680,11 @@ for (species in species_vector){
   }
 }
 
-  
+
+df_presence_sp_long <- as.data.frame(df_presence_sp_long)%>%
+  left_join(df_epg_host, by= 'Host')
+df_presence_sp_long <- rename(df_presence_sp_long, 'EPG'='EPG_DC_dry')
+
 
 df_Strongylus_equinus <- data.frame(df_presence_sp_long[df_presence_sp_long$Species == "Strongylus_equinus", ])
 df_Cyathostomum_catinatum <- data.frame(df_presence_sp_long[df_presence_sp_long$Species == 'Cyathostomum_catinatum',])
@@ -708,6 +734,210 @@ for (species in 1:length(species_df_vector)){
   print(species_df_vector[[species]][1,'Species'])
   print(post_hoc_regression_species[[species]])
 }
+
+
+
+#for strongyluys_equinus, no difference in models, not significant difference by method
+interaction <- glm(Detection ~ Method * EPG, data = df_Strongylus_equinus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Strongylus_equinus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Strongylus_equinus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Strongylus_equinus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+#for Cyathostomum_catinatum, no interaction but epg is significant in model, but no significant diffference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Cyathostomum_catinatum, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Cyathostomum_catinatum, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Cyathostomum_catinatum, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method + EPG, data = df_Cyathostomum_catinatum, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Cylicocyclus_elongatus, no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Cylicocyclus_elongatus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Cylicocyclus_elongatus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Cylicocyclus_elongatus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Cylicocyclus_elongatus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Triodontophorus_brevicauda, no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Triodontophorus_brevicauda, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Triodontophorus_brevicauda, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Triodontophorus_brevicauda, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Triodontophorus_brevicauda, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Cylicostephanus_longibursatus, no interaction but epg is significant in model, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Cylicostephanus_longibursatus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Cylicostephanus_longibursatus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Cylicostephanus_longibursatus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method + EPG, data = df_Cylicostephanus_longibursatus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Cylicocyclus_nassatus, no interaction but epg is significant in model
+#### #Fecal and Larva (p=0.0376)
+#### #Larva and Swab (p = 0.0459)
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Cylicocyclus_nassatus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Cylicocyclus_nassatus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Cylicocyclus_nassatus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method + EPG, data = df_Cylicocyclus_nassatus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+
+#for Coronocyclus_coronatus, no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Coronocyclus_coronatus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Coronocyclus_coronatus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Coronocyclus_coronatus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Coronocyclus_coronatus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+
+#for Cylicostephanus_goldi, no interaction but epg is significant in model, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Cylicostephanus_goldi, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Cylicostephanus_goldi, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Cylicostephanus_goldi, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method + EPG, data = df_Cylicostephanus_goldi, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Petrovinema_poculatum,  no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Petrovinema_poculatum, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Petrovinema_poculatum, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Petrovinema_poculatum, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Petrovinema_poculatum, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+
+#for Poteriostomum_imparidentatum,  no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Poteriostomum_imparidentatum, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Poteriostomum_imparidentatum, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Poteriostomum_imparidentatum, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Poteriostomum_imparidentatum, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Strongylus_edentatus,  no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Strongylus_edentatus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Strongylus_edentatus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Strongylus_edentatus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Strongylus_edentatus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Coronocyclus_labratus,  no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Coronocyclus_labratus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Coronocyclus_labratus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Coronocyclus_labratus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Coronocyclus_labratus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+#for Triodontophorus_serratus,  no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Triodontophorus_serratus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Triodontophorus_serratus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Triodontophorus_serratus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method, data = df_Triodontophorus_serratus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+
+#for Cylicostephanus_minutus,  no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Cylicostephanus_minutus, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Cylicostephanus_minutus, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Cylicostephanus_minutus, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method + EPG, data = df_Cylicostephanus_minutus, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+
+#for Poteriostomum_ratzii,  no difference in models, not significant difference by method
+
+interaction <- glm(Detection ~ Method * EPG, data = df_Poteriostomum_ratzii, family = binomial())
+epg_model <- glm(Detection ~ Method + EPG, data = df_Poteriostomum_ratzii, family = binomial())
+no_epg <- glm(Detection ~ Method, data = df_Poteriostomum_ratzii, family = binomial())
+
+anova(interaction, epg_model)
+anova(epg_model, no_epg)
+
+summary(epg_interact_model <- glm(Detection ~ Method * EPG, data = df_Poteriostomum_ratzii, family = binomial()))
+summary(emmeans(epg_interact_model, pairwise ~ Method))
+
+
+
 
 ## ignore the regression for now
 # try relative abundance on the rarefied samples for reads
