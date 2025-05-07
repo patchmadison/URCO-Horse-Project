@@ -501,10 +501,12 @@ detectionxmethod_sp +
 
 
 perc_stats <- betareg(Host_perc ~ Method,data = df_sp_long_perc)
+#glmmTMBmodel <- glmmTMB(Host_perc ~ Method + (1|asv), family = beta_family(), data = df_sp_long_perc)
+
 summary(perc_stats)
 
-emmeans(perc_stats, pairwise ~ Method)
-glht(perc_stats)
+emmeans(perc_stats, pairwise ~ Method, adjust = 'Tukey')
+#glht(perc_stats)
 
 
 
