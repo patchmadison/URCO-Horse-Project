@@ -372,6 +372,13 @@ species_table <- table(tax_table(physeq_ltt_filt)[,"species"], exclude =NULL)
 sum(species_table[-length(species_table)])/sum(species_table) # 77.37% assigned family
 
 
+ctrls <- subset_samples(physeq_ltt, Host == 'CTRL')
+ctrls_reads <- sample_sums(ctrls)
+
+mean(ctrls_reads) ## mean 5.8 reads
+sd(ctrls_reads) ## sd 7.95
+
+
 ## remove asvs with less than 15 reads in sample 
 head(otu_table(physeq_ltt_filt), 10)
 
@@ -437,10 +444,6 @@ ps_final <- subset_samples(psa, sample_sums(psa) > 1000)
 
 saveRDS(ps_final, "ps_final_12Sept24.rds")
 
-
-#meta_df1 <- data.frame(sample_data(psa))
-#meta_df1$Reads <- sample_sums(psa)
-#meta_df1$Dry_weight_EPG <- meta_df1$Percent_dry * meta_df1$EPG
 
 
 
@@ -526,73 +529,4 @@ plot_bar(physeq_ltt_filt_species_glom, x="Sample_name", fill="species")
 
 
 ### remove the LB samples no duplicates
-
-
-
-
-
-
-
-
-
-### ATTEMPTING ALPHA DIVERSITY AND ANALYSIS
-
-
-
-
-# richness for species 
-##* also need to do genus glom and asvs
-estimate_richness(physeq_ltt_filt)
-richness <- estimate_richness(physeq_ltt_filt_species_glom)
-richness['Sample_type'] <- sample_data(physeq_ltt_filt_species_glom)[,"Sample_type"]
-
-write.csv(richness, file = "Sample_richness.csv")
-
-
-# not needed for now
-larva_samples <- subset_samples(physeq_ltt_filt_species_glom, Sample_type == "Larva")
-fecal_samples <- subset_samples(physeq_ltt_filt_species_glom, Sample_type == "Fecal")
-swab_samples <- subset_samples(physeq_ltt_filt_species_glom, Sample_type == "Swab")
-
-
-# richness plot
-boxplot(Observed ~ Sample_type,
-        data = richness,
-        main = "Richness by Sample Type",
-        xlab = "Sample Type",
-        ylab = "# of Species"
-)
-
-### do in ggplot, overlay points, etc
-## find metric for just evenness
-
-# shannon index box plot
-boxplot(Shannon ~ Sample_type,
-        data = richness,
-        main = "Shannon Index by Sample Type",
-        xlab = "Sample Type",
-        ylab = "Shannon Index"
-)
-
-# fisher index box plot
-boxplot(Fisher ~ Sample_type,
-        data = richness,
-        main = "Fisher Index by Sample Type",
-        xlab = "Sample Type",
-        ylab = "Fisher Index"
-)
-
-
-
-
-## attempting pcoa plot
-
-
-
-## change meta data to include eggs per gram 
-## wet weights vs dry weights
-
-
-
-
 
