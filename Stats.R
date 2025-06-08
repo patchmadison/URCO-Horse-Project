@@ -136,16 +136,69 @@ TukeyHSD(readsxmethod_aov)
  ## need to change the plot to a box plot instead 
 
 readsxepginteractionxmethodmdl <- aov(Reads ~ Sample_type * EPG_DC_dry, data = metadata_final)
+readsl <- lm(Reads ~ Sample_type * EPG_DC_dry, data = metadata_final)
+summary(readsl)#high residual error to df ratio. maybe not the best fit
 summary(readsxepginteractionxmethodmdl)
 emmeans(readsxepginteractionxmethodmdl, pairwise ~ Sample_type * EPG_DC_dry, adjust = 'Tukey')
 
 readsxepgxmethodmdl <- aov(Reads ~ Sample_type + EPG_DC_dry, data = metadata_final)
 summary(readsxmethodmdl)
 
+reads_poisson <- glm(Reads ~ Sample_type * EPG_DC_dry, data = metadata_final, family = poisson())
+summary(reads_poisson)
+
+dispersion_estimate <- (reads_poisson$deviance / reads_poisson$df.residual)
+dispersion_estimate
+asv_emmeans <- emmeans(asv_poisson, pairwise ~ Sample_type)
 anova(readsxepginteractionxmethodmdl, readsxepgxmethodmdl) ## significant EPG interaction effect added p = 0.02499
 
 
+library(glmmTMB)
 
+#use nbinom1 (quasipoisson) or nbinom2 (typ neg binomal), look at residuals:
+#https://stats.stackexchange.com/questions/284911/type-i-and-type-ii-negative-binomial-distribution-in-zero-inflated-negative-bino
+m.glmmTMB <- glmmTMB(Reads ~ EPG_DC_dry*Sample_type  , data = metadata_final, family = nbinom1)
+summary(m.glmmTMB)
+
+m.glmmTMB2 <- glmmTMB(Reads ~ EPG_DC_dry*Sample_type  , data = metadata_final, family = nbinom2)
+anova( m.glmmTMB2,m.glmmTMB)
+summary(m.glmmTMB2)
+
+m.glmmTMB3 <- glmmTMB(Reads ~ Sample_type  , data = metadata_final, family = nbinom2)
+anova( m.glmmTMB3,m.glmmTMB2)
+summary(m.glmmTMB3)
+
+
+# Create residuals vs fitted plot
+metadata_final$squared_residuals <- residuals(m.glmmTMB)^2
+metadata_final$squared_residuals2 <- residuals(m.glmmTMB2)^2
+
+
+
+ggplot(metadata_final, aes(x = Reads, y = squared_residuals)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  labs(x = "Observed Values", y = "Squared Residuals",
+       title = "Observed Values vs. Squared Residuals; nbiom1") +
+  theme_minimal()
+
+ggplot(metadata_final, aes(x = Reads, y = squared_residuals2)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  labs(x = "Observed Values", y = "Squared Residuals",
+       title = "Observed Values vs. Squared Residuals; nbiom2") +
+  theme_minimal()
+
+
+
+p.fvr <- ggplot(m.glmmTMB, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = 2) +
+  xlab("Fitted Values") +
+  ylab("Residuals") +
+  ggtitle("Residuals vs. Fitted Plot Created using ggplot2") +
+  theme_bw()
+
+# Display the residual plot
+p.fvr
 
 
 
@@ -196,6 +249,26 @@ sd(metadata_rarefied$Richness_asv) # 16.58
 sd(metadata_rarefied$Richness_sp) # 3.53 
 sd(metadata_rarefied$Richness_g) # 1.83
 
+# all 36 samples
+mean(metadata_rarefied$Evenness_asv) # 0.715
+mean(metadata_rarefied$Evenness_sp) # NA
+mean(metadata_rarefied$Evenness_g) # NA
+
+sd(metadata_rarefied$Evenness_asv) # 0.103
+sd(metadata_rarefied$Evenness_sp) # NA
+sd(metadata_rarefied$Evenness_g) # NA
+
+# NA rm, 33 samples
+mean(metadata_rarefied$Evenness_sp, na.rm = T) # 0.648
+mean(metadata_rarefied$Evenness_g, na.rm = T) # 0.671
+
+sd(metadata_rarefied$Evenness_sp, na.rm = T) # 0.185
+sd(metadata_rarefied$Evenness_g, na.rm = T) # 0.206
+
+
+## need to recalculate evenness by host for averages
+
+
 
 # start plots
 # allllll richness
@@ -222,17 +295,19 @@ richnessxmethod_g + geom_boxplot()+
 
 
 
-## try a plot?
 asv_poisson <- glm(Richness_asv ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
 summary(asv_poisson)
-asv_emmeans <- emmeans(asv_poisson, pairwise ~ Sample_type)
+plot(asv_poisson)
+asv_emmeans <- emmeans(asv_poisson, pairwise ~ Sample_type + EPG_DC_dry)
 summary(asv_emmeans)
 sp_poisson <- glm(Richness_sp ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
 summary(sp_poisson)
+plot(sp_poisson)
 sp_emmeans <- emmeans(sp_poisson, pairwise ~ Sample_type)
 summary(sp_emmeans)
-g_poisson <- glm(Richness_g ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
+g_poisson <- glm(Richness_g ~ Sample_type, data = metadata_rarefied, family = poisson())
 summary(g_poisson) 
+plot(g_poisson)
 g_emmeans <- emmeans(g_poisson, pairwise ~ Sample_type)
 summary(g_emmeans)
 
@@ -262,31 +337,31 @@ richness_gxepgxmethod
 
 
 # testing model significance asv
-asvxepgxmethodmdl <- aov(Richness_asv ~ Sample_type + EPG_DC_dry, data = metadata_rarefied)
+asvxepgxmethodmdl <- glm(Richness_asv ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
 summary(asvxepgxmethodmdl)
 
-asvxmethodmdl <- aov(Richness_asv ~ Sample_type, data = metadata_rarefied)
+asvxmethodmdl <- glm(Richness_asv ~ Sample_type, data = metadata_rarefied, family = poisson())
 summary(asvxmethodmdl)
 
-anova(asvxmethodmdl, asvxepgxmethodmdl) # significant difference p = 0.0001887
+anova(asvxmethodmdl, asvxepgxmethodmdl) # significant difference p < 0.0001
 
 # testing model significance sp
-spxepgxmethodmdl <- aov(Richness_sp ~ Sample_type + EPG_DC_dry, data = metadata_rarefied)
+spxepgxmethodmdl <- glm(Richness_sp ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
 summary(spxepgxmethodmdl)
 
-spxmethodmdl <- aov(Richness_sp ~ Sample_type, data = metadata_rarefied)
+spxmethodmdl <- glm(Richness_sp ~ Sample_type, data = metadata_rarefied, family = poisson())
 summary(spxmethodmdl)
 
-anova(spxmethodmdl, spxepgxmethodmdl) # significant difference p = 0.001988
+anova(spxmethodmdl, spxepgxmethodmdl) # significant difference p = 0.01546
 
 # testing model significance g
-gxepgxmethodmdl <- aov(Richness_g ~ Sample_type + EPG_DC_dry, data = metadata_rarefied)
+gxepgxmethodmdl <- glm(Richness_g ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
 summary(gxepgxmethodmdl)
 
-gxmethodmdl <- aov(Richness_g ~ Sample_type, data = metadata_rarefied)
+gxmethodmdl <- glm(Richness_g ~ Sample_type, data = metadata_rarefied, family = poisson())
 summary(gxmethodmdl)
 
-anova(gxmethodmdl, gxepgxmethodmdl) # significant difference p = 0.00524
+anova(gxmethodmdl, gxepgxmethodmdl) # no significant difference p = 0.1306
 
 
 summary(asvxepgxmethodmdl)
@@ -332,14 +407,45 @@ ggplot(df_long, mapping = aes(x= Sample_type, y = `Diversity Values`)) +
   facet_grid(Diversity_metric ~ Taxonomy_level, scales = 'free_y')+
   theme_bw()
 
+even_asv_mdl <- betareg(Evenness_asv ~ 1,data = metadata_rarefied)
+summary(even_asv_mdl)
+emmeans(even_asv_mdl,pairwise ~ Sample_type, adjust = 'Tukey')
 
-summary(betareg(Evenness_asv ~ Sample_type,data = metadata_rarefied))
+even_sp_mdl <- betareg(Evenness_sp ~ Sample_type,data = metadata_rarefied)
+summary(even_sp_mdl)
+emmeans(even_sp_mdl,pairwise ~ Sample_type, adjust = 'Tukey')
 
-summary(betareg(Evenness_sp ~ Sample_type,data = metadata_rarefied))
+even_g_mdl <- betareg(Evenness_g ~ Sample_type,data = metadata_rarefied)
+summary(even_g_mdl)
+emmeans(even_g_mdl,pairwise ~ Sample_type, adjust = 'Tukey')
 
-summary(betareg(Evenness_g ~ Sample_type,data = metadata_rarefied))
 
+# testing model significance asv evenness
+asvxepgxmethodmdl <- betareg(Evenness_asv ~ Sample_type + EPG_DC_dry,data = metadata_rarefied)
+summary(asvxepgxmethodmdl)
 
+asvxmethodmdl <- betareg(Evenness_asv ~ Sample_type,data = metadata_rarefied)
+summary(asvxmethodmdl)
+
+lrtest(asvxmethodmdl, asvxepgxmethodmdl) # no significant difference 
+
+# testing model significance sp evenness
+spxepgxmethodmdl <- betareg(Evenness_sp ~ Sample_type + EPG_DC_dry,data = metadata_rarefied)
+summary(spxepgxmethodmdl)
+
+spxmethodmdl <- betareg(Evenness_sp ~ Sample_type, data = metadata_rarefied)
+summary(spxmethodmdl)
+
+lrtest(spxmethodmdl, spxepgxmethodmdl) # no significant difference
+
+# testing model significance g evenness
+gxepgxmethodmdl <- betareg(Evenness_g ~ Sample_type + EPG_DC_dry,data = metadata_rarefied)
+summary(gxepgxmethodmdl)
+
+gxmethodmdl <- betareg(Evenness_g ~ Sample_type,data = metadata_rarefied)
+summary(gxmethodmdl)
+
+lrtest(gxmethodmdl, gxepgxmethodmdl) # no significant difference  
 
 
 
@@ -412,15 +518,15 @@ richnessxmethod_g + geom_boxplot()+
        x = "Processing Method", y = "Richness (# of genera)")
 
 
-asv_poisson <- glm(Richness_asv ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
+asv_poisson <- glm(Richness_asv ~ Sample_type + EPG_DC_dry, data = metadata_raw_reads, family = poisson())
 summary(asv_poisson)
 asv_emmeans <- emmeans(asv_poisson, pairwise ~ Sample_type)
 summary(asv_emmeans)
-sp_poisson <- glm(Richness_sp ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
+sp_poisson <- glm(Richness_sp ~ Sample_type + EPG_DC_dry, data = metadata_raw_reads, family = poisson())
 summary(sp_poisson)
 sp_emmeans <- emmeans(sp_poisson, pairwise ~ Sample_type)
 summary(sp_emmeans)
-g_poisson <- glm(Richness_g ~ Sample_type + EPG_DC_dry, data = metadata_rarefied, family = poisson())
+g_poisson <- glm(Richness_g ~ Sample_type + EPG_DC_dry, data = metadata_raw_reads, family = poisson())
 summary(g_poisson) 
 g_emmeans <- emmeans(g_poisson, pairwise ~ Sample_type)
 summary(g_emmeans)
@@ -462,10 +568,41 @@ ggplot(df_long_raw, mapping = aes(x= Sample_type, y = `Diversity Values`)) +
   theme_bw()
 
 
-# new concepts
-# methods overlap or have differing groups of detectable species
-# plots of percentage of samples that have specific genus, species, or asv
-# ^ all methods would be combined into one to have just host
+
+
+## PCoA plot
+
+library(vegan)
+psa <- ps_final
+sd<-data.frame(sample_data(psa))
+colnames(sd)<-c("sample", "method", "host")
+sample_data(psa)<-sd
+
+ord <- ordinate(psa, "PCoA", "bray")
+p1 = plot_ordination(psa, ord,  type="samples", color="host", shape="method") +
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1)
+
+bray <- phyloseq::distance(psa, method = "bray")
+sam <- data.frame(sample_data(psa))
+adonis2(bray ~ method, data = sam, permutations = 999)#no sig dif
+
+ord2 <- ordinate(psa, "PCoA", "jaccard")
+p1 = plot_ordination(psa, ord2,  type="samples", color="host", shape="method")+
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1)
+
+jac <- phyloseq::distance(psa, method = "jaccard")
+adonis2(jac ~ method, data = sam, permutations = 999)#no sig dif
+
+#BZs 12,11,8 seem to be more different. Mostly grouped by host, not method
+
+
+
 
 ## trying something
 ps_sp <- ps_final_sp
