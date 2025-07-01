@@ -1,0 +1,212 @@
+---
+title: "Figures"
+author: "Madison Patch"
+date: "2025-06-10"
+output: pdf_document
+---
+
+
+
+
+sooooo the computer crashed, corrupted the file, and only had a version from a week prior. So none of this is updated, but will be saved just in case
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r McM and DC egg counts, echo=FALSE}
+plot(pressure)
+```
+
+
+```{r dry weights histogram, echo=FALSE}
+
+## not needed for main text
+
+
+unique_dry_weight <- unique(metadata_final$Percent_dry)
+
+library(ggplot2)
+
+ggplot(data = data.frame(Percent_dry = unique_dry_weight), aes(x = 1 - Percent_dry)) +
+  geom_histogram(binwidth = 0.05, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of Dry Weights",
+       x = "Percentage of Water", y = "Number of Samples") +
+  theme_minimal()
+
+
+
+```
+
+
+```{r reads box plot, echo=FALSE}
+plot(pressure)
+```
+
+
+
+```{r EPG by reads and method, echo=FALSE}
+library(ggplot2)
+library(dplyr)
+
+
+
+ggplot(metadata_final, aes(x = Method, y = Reads, fill = Method)) +
+  geom_violin(alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.6, color = "black") +
+  labs(title = "Violin Plot of Reads Across Methods",
+       x = "Method", y = "Number of Reads") +
+  theme_minimal()+
+  theme(legend.position = "none")
+
+
+
+ggplot(metadata_final, aes(x = EPG_DC_dry, y = Reads, color = Method)) +
+  geom_point(alpha = 0.7) +  # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE) +  # Linear trend lines per Method
+  labs(title = "Interaction Effect of Method and EPG on Reads",
+       x = "Egg Per Gram (EPG)", y = "Number of Reads") +
+  theme_minimal()
+
+
+ggplot(metadata_final, aes(x = EPG_DC_dry, y = Reads, color = Method, shape = Method)) +
+  geom_point(alpha = 0.7, size = 2.5) +
+  geom_smooth(method = "lm",  aes(linetype = Method, fill = Method), se = F, alpha = 0.15) +
+  labs(title = "Interaction Effect of Method and EPG on Reads",
+       x = "Egg Per Gram (EPG)", y = "Number of Reads") +
+  theme_classic()
+
+
+
+library(broom)
+
+metadata_final %>%
+  group_by(Method) %>%
+  do(tidy(lm(Reads ~ EPG_DC_dry, data = .)))
+
+
+
+```
+
+
+```{r richness and eveness, echo=FALSE}
+
+df_diversity_long <- pivot_longer(metadata_rarefied, cols = c(Richness_asv, Richness_sp, Richness_g,
+                                                    Evenness_asv, Evenness_sp, Evenness_g),
+                        names_to = "Diversity Metric", values_to = "Diversity Values")
+df_diversity_long <- separate(df_diversity_long, 'Diversity Metric', into = c("Diversity_metric", "Taxonomy_level"), sep = '_')
+
+df_diversity_long$Taxonomy_level <- factor(df_diversity_long$Taxonomy_level, levels = c('asv', 'sp', 'g'), labels = c('ASVs', 'Species', 'Genera'))
+
+## facet grid box plot richness and evenness
+ggplot(df_diversity_long, mapping = aes(x= Method, y = `Diversity Values`)) +
+  geom_boxplot()+
+  geom_dotplot(binaxis = 'y', stackdir = 'center', dotsize = .5, fill = 'red')+
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  facet_grid(Diversity_metric ~ Taxonomy_level, scales = 'free_y')+
+  theme_bw()
+
+
+df_evenness <- df_diversity_long[df_diversity_long$Diversity_metric == "Evenness", ]
+
+
+
+## facet grid box plot richness and evenness
+ggplot(df_evenness, mapping = aes(x= Method, y = `Diversity Values`)) +
+  geom_boxplot()+
+  geom_dotplot(binaxis = 'y', stackdir = 'center', dotsize = .5, fill = 'red')+
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  facet_grid(Diversity_metric ~ Taxonomy_level, scales = 'free_y')+
+  theme_bw()
+
+
+
+
+ggplot(metadata_rarefied, aes(x = EPG_DC_dry, y = Richness_asv, color = Sample_type)) +
+  geom_point(alpha = 0.7) +  # Adds individual data points
+  geom_smooth(method = "lm", se = TRUE) +  # Adds trend lines for each Method
+  labs(title = "Relationship Between EPG and Richness",
+       x = "Egg Per Gram (EPG)", y = "ASV Richness") +
+  theme_minimal()
+
+ggplot(metadata_rarefied, aes(x = EPG_DC_dry, y = Richness_sp, color = Sample_type)) +
+  geom_point(alpha = 0.7) +  # Adds individual data points
+  geom_smooth(method = "lm", se = TRUE) +  # Adds trend lines for each Method
+  labs(title = "Relationship Between EPG and Richness",
+       x = "Egg Per Gram (EPG)", y = "Species Richness") +
+  theme_minimal()
+
+ggplot(metadata_rarefied, aes(x = EPG_DC_dry, y = Richness_g, color = Sample_type)) +
+  geom_point(alpha = 0.7) +  # Adds individual data points
+  geom_smooth(method = "lm", se = TRUE) +  # Adds trend lines for each Method
+  labs(title = "Relationship Between EPG and Richness",
+       x = "Egg Per Gram (EPG)", y = "Genus Richness") +
+  theme_minimal()
+
+
+
+ggplot(metadata_final, aes(x = EPG_DC_dry, y = Reads, color = Method, shape = Method)) +
+  geom_point(alpha = 0.7, size = 2.5) +
+  geom_smooth(method = "lm",  aes(linetype = Method, fill = Method), se = F, alpha = 0.15) +
+  labs(title = "Interaction Effect of Method and EPG on Reads",
+       x = "Egg Per Gram (EPG)", y = "Number of Reads") +
+  theme_classic()
+
+
+
+
+
+
+
+
+library(tidyr)
+library(dplyr)
+
+richness_long <- metadata_rarefied %>%
+  dplyr::select(EPG_DC_dry, Sample_type, Richness_asv, Richness_sp, Richness_g) %>%
+  pivot_longer(cols = starts_with("Richness"),
+               names_to = "Richness_Type",
+               values_to = "Richness_Value") %>%
+  mutate(Richness_Type = recode(Richness_Type,
+                                Richness_asv = "ASV Richness",
+                                Richness_sp = "Species Richness",
+                                Richness_g = "Genus Richness"))
+
+
+ggplot(richness_long, aes(x = EPG_DC_dry, y = Richness_Value,
+                          color = Sample_type, shape = Sample_type)) +
+  geom_point(alpha = 0.7, size = 2.5) +
+  geom_smooth(method = "lm", aes(linetype = Sample_type), se = FALSE) +
+  facet_wrap(~ Richness_Type, scales = "free_y") +
+  labs(title = "Relationship Between EPG and Richness Metrics",
+       x = "Egg Per Gram (EPG)", y = "Richness",
+       color = "Sample Type", shape = "Sample Type", linetype = "Sample Type") +
+  theme_classic()
+
+
+
+```
+
+
+```{r heatmap, echo=FALSE}
+plot(pressure)
+```
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+
+jacc distance (dont really care about)
+
+
+
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
