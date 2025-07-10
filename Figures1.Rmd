@@ -188,8 +188,173 @@ ggplot(richness_long, aes(x = EPG_DC_dry, y = Richness_Value,
 ```
 
 
-```{r, echo=FALSE}
-plot(pressure)
+```{r pcoa plot, echo=FALSE}
+
+library(vegan)
+psa <- ps_final
+sd<-data.frame(sample_data(psa))
+colnames(sd)<-c("sample", "method", "host")
+sd$method <- factor(sd$method, 
+                                levels = c("Larva", "Swab", "Fecal"),
+                                labels = c( "Larval Culture", "Egg Concentration","Fecal Subsample"))
+
+sample_data(psa)<-sd
+
+
+
+
+
+ord <- ordinate(psa, "PCoA", "bray")
+p1 = plot_ordination(psa, ord,  type="samples", color="host", shape="method") +
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1)
+
+
+ord2 <- ordinate(psa, "PCoA", "jaccard")
+p1 = plot_ordination(psa, ord2,  type="samples", color="host", shape="method")+
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1)
+
+
+
+library(dplyr)
+
+# Extract ordination coordinates
+coord_df <- as.data.frame(ord$vectors)
+coord_df$host <- sd$host
+coord_df$method <- sd$method
+coord_df$sample <- sd$sample
+
+# Calculate host centroids
+centroids <- coord_df %>%
+  group_by(host) %>%
+  summarise(
+    Centroid1 = mean(Axis.1),
+    Centroid2 = mean(Axis.2),
+    .groups = "drop"
+  )
+
+
+# Create spoke segments: from centroid to sample points
+segments <- coord_df %>%
+  left_join(centroids, by = "host") %>%
+  dplyr::select(sample, host, method, Axis.1, Axis.2, Centroid1, Centroid2)
+
+
+
+ggplot(coord_df, aes(x = Axis.1, y = Axis.2, color = host, shape = method)) +
+  geom_segment(data = segments,
+             aes(x = Centroid1, y = Centroid2, xend = Axis.1, yend = Axis.2),
+             color = "gray50", linewidth = 0.5) +
+  geom_point(size = 4) +
+  geom_text_repel(
+  data = centroids,
+  aes(x = Centroid1, y = Centroid2, label = host, color = host),
+  inherit.aes = FALSE,
+  fontface = "bold",
+  size = 4,
+  min.segment.length = 0,
+  max.overlaps = Inf,
+  force = 2,
+  box.padding = 0.5,
+  point.padding = 0.5,
+  segment.color = "gray30"
+)+
+  scale_color_viridis_d(option = "cividis") +
+  theme_minimal(base_size = 14) +
+  labs(title = "PCoA: Sample Clustering by Host and Method",
+       color = "Host",
+       shape = "Method")
+
+
+
+
+
+
+# Packages you’ll need
+library(phyloseq)
+library(ggplot2)
+library(viridis)
+library(dplyr)
+library(ggrepel)
+
+# --- Set up sample data and factor levels ---
+psa <- ps_final
+sd <- data.frame(sample_data(psa))
+colnames(sd) <- c("sample", "method", "host")  # adjust if needed
+
+sd$method <- factor(sd$method, 
+                    levels = c("Larva", "Swab", "Fecal"),
+                    labels = c("Larval Culture", "Egg Concentration", "Fecal Subsample"))
+
+sample_data(psa) <- sd
+
+# --- PCoA ordination ---
+ord <- ordinate(psa, method = "PCoA", distance = "bray")
+
+# Variance explained for axis labels
+var_explained <- ord$values$Eigenvalues / sum(ord$values$Eigenvalues)
+pc1 <- round(var_explained[1] * 100, 1)
+pc2 <- round(var_explained[2] * 100, 1)
+
+# --- Prepare data for plotting ---
+coord_df <- as.data.frame(ord$vectors)
+coord_df$host <- sd$host
+coord_df$method <- sd$method
+coord_df$sample <- sd$sample
+
+# Centroids for each host
+centroids <- coord_df %>%
+  group_by(host) %>%
+  summarise(
+    Centroid1 = mean(Axis.1),
+    Centroid2 = mean(Axis.2),
+    .groups = "drop"
+  )
+
+# Segments from centroid to samples
+segments <- coord_df %>%
+  left_join(centroids, by = "host") %>%
+  dplyr::select(sample, host, method, Axis.1, Axis.2, Centroid1, Centroid2)
+
+# --- Final plot ---
+pcoa <- ggplot(coord_df, aes(x = Axis.1, y = Axis.2, color = host, shape = method)) +
+  geom_segment(data = segments,
+               aes(x = Centroid1, y = Centroid2, xend = Axis.1, yend = Axis.2),
+               inherit.aes = FALSE,
+               color = "gray50", linewidth = 0.5) +
+  geom_point(size = 4) +
+  geom_text_repel(
+    data = centroids,
+    aes(x = Centroid1, y = Centroid2, label = host, color = host),
+    inherit.aes = FALSE,
+    fontface = "bold",
+    size = 4,
+    min.segment.length = 0,
+    max.overlaps = Inf,
+    force = 2,
+    box.padding = 0.5,
+    point.padding = 0.5,
+    segment.color = "gray30"
+  ) +
+  scale_color_viridis_d(option = "cividis") +
+  coord_fixed(ratio = pc2 / pc1) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "PCoA: Sample Clustering by Host and Method",
+    x = paste0("Axis 1 (", pc1, "%)"),
+    y = paste0("Axis 2 (", pc2, "%)"),
+    color = "Host",
+    shape = "Method"
+  )
+
+
+ggsave(plot=pcoa, height = 169,width=169, dpi=300, units = 'mm', filename = "C:/Users/Weinstein Lab/Desktop/URCO-Horse-Project/PCoA.pdf", useDingbats=FALSE)
+
 ```
 
 ```{r heatmap, echo=FALSE}
