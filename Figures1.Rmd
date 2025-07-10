@@ -188,12 +188,122 @@ ggplot(richness_long, aes(x = EPG_DC_dry, y = Richness_Value,
 ```
 
 
-```{r heatmap, echo=FALSE}
+```{r, echo=FALSE}
 plot(pressure)
 ```
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r heatmap, echo=FALSE}
+
+
+library(viridisLite)
+
+cividis_colors <- viridisLite::cividis(n = 100)
+blue_from_cividis <- cividis_colors[10]
+
+
+"#00204DFF"
+"#002455FF"
+"#00275FFF"
+"#00306FFF"
+
+library(dplyr)
+
+genus_prevalence <- df_presence_g_long %>%
+  group_by(Genus, Method) %>%
+  summarise(Prevalence = mean(Detection), .groups = "drop")
+
+
+genus_order <- genus_prevalence %>%
+  group_by(Genus) %>%
+  summarise(MeanPrev = mean(Prevalence)) %>%
+  arrange(desc(MeanPrev)) %>%
+  pull(Genus)
+
+
+genus_prevalence$Genus <- factor(genus_prevalence$Genus, levels = genus_order)
+
+
+
+library(ggplot2)
+
+genus_prev_plot <- ggplot(genus_prevalence, aes(x = Method, y = Genus, fill = Prevalence)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = blue_from_cividis, limit = c(0,1)) +
+  labs(
+    title = "Genus Detection Prevalence by Method",
+    x = "Method",
+    y = "Genus",
+    fill = "Prevalence"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+
+
+ggsave(plot=genus_prev_plot, height = 169,width=169, dpi=300, units = 'mm', filename = "C:/Users/Weinstein Lab/Desktop/URCO-Horse-Project/genus_prev_plot.pdf", useDingbats=FALSE)
+
+
+
+library(dplyr)
+library(tidyr)
+
+
+
+df_presence_sp_long <- df_presence_sp_long %>%
+  separate(Species, into = c("Genus"), sep = "_", remove = FALSE)
+
+species_prevalence <- df_presence_sp_long %>%
+  group_by(Genus, Species, Method) %>%
+  summarise(Prevalence = mean(Detection), .groups = "drop")
+
+
+
+species_order <- species_prevalence %>%
+  group_by(Genus, Species) %>%
+  summarise(MeanPrev = mean(Prevalence), .groups = "drop") %>%
+  arrange(factor(Genus, levels = genus_order), desc(MeanPrev))
+
+species_prevalence$Species <- factor(species_prevalence$Species,
+                                     levels = species_order$Species)
+species_prevalence$Genus <- factor(species_prevalence$Genus,
+                                   levels = genus_order)
+
+
+
+library(ggplot2)
+
+species_prev_plot <- ggplot(species_prevalence, aes(x = Method, y = Species, fill = Prevalence)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = blue_from_cividis, limit = c(0,1)) +
+  labs(
+    title = "Species Detection Prevalence by Method",
+    x = "Method",
+    y = "Species",
+    fill = "Prevalence"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+
+
+genus_sizes <- df_presence_sp_long %>%
+  group_by(Genus) %>%
+  summarise(n_species = n_distinct(Species)) %>%
+  arrange(desc(n_species))
+
+
+
+ggsave(plot=species_prev_plot, height = 169,width=169, dpi=300, units = 'mm', filename = "C:/Users/Weinstein Lab/Desktop/URCO-Horse-Project/species_prev_plot.pdf", useDingbats=FALSE)
+
+
 ```
 
 
