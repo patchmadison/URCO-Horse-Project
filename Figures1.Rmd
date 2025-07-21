@@ -472,13 +472,27 @@ ggsave(plot=species_prev_plot, height = 169,width=169, dpi=300, units = 'mm', fi
 ```
 
 
-jacc distance (dont really care about)
 
 
 
+```{r epg~l3, echo=FALSE}
+# Assuming your raw data frame is called df
+# and it contains columns: EPG and L3_avg
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+library(ggplot2)
+
+ggplot(epg_l3_data, aes(x = EPG_DC_wet, y = Avg_L3_count)) +
+  geom_point(size = 3, alpha = 0.7, color = "steelblue") +
+  geom_smooth(method = "glm", 
+              method.args = list( family = Gamma(link = "log")), 
+              color = "darkorange", se = TRUE) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Relationship Between EPG and L3 Count",
+    x = "Eggs Per Gram (EPG)",
+    y = "Average L3 Count"
+  )
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

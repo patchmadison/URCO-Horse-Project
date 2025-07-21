@@ -262,6 +262,26 @@ metadata_final %>%
 
 
 
+
+# EPG ~ L3 stats
+epg_l3_data <- metadata_final[c('Host', 'EPG_DC_wet', 'EPG_DC_dry', 'EPG_McM_wet', 'EPG_McM_dry', 'Number_of_L3_counts', 'Avg_L3_count')]
+epg_l3_data <- unique(epg_l3_data)
+L3_imputed <- ifelse(epg_l3_data$Avg_L3_count == 0, 0.25, epg_l3_data$Avg_L3_count)
+epg_l3_data$Avg_L3_count_imputed <- L3_imputed
+
+epg_l3 <- glm(data = epg_l3_data, formula = EPG_DC_wet ~ Avg_L3_count_imputed, family = Gamma(link = "log"))
+
+summary(epg_l3)
+
+
+
+plot(epg_l3)
+
+
+
+
+
+
 ## might do more graphs later 
 ##but now onto diversity!
 
@@ -1475,6 +1495,369 @@ p<-c(0.566,
      0.0704,
      0.0202)
 p.adjust(p, method = 'fdr', n = length(p))
+
+
+
+
+
+library(phyloseq)
+library(dplyr)
+library(tidyr)
+
+ps_rarefied_sp <- ps_rarified_sp
+
+otu <- as.data.frame(otu_table(ps_rarefied_sp))
+tax <- as.data.frame(tax_table(ps_rarefied_sp))
+meta <- as.data.frame(sample_data(ps_rarefied_sp))
+
+
+otu_long <- otu %>%
+  as.data.frame() %>%
+  rownames_to_column("Sample_name") %>%
+  pivot_longer(-Sample_name, names_to = "Taxon", values_to = "Abundance") %>%
+  left_join(meta, by = "Sample_name") %>%
+  left_join(tax %>% rownames_to_column("Taxon"), by = "Taxon")  # includes genus/species
+
+
+# Collapse sample-level data to host-level detection
+host_taxa_presence <- otu_long %>%
+  group_by(Host, Taxon) %>%
+  summarise(
+    Present = any(Abundance > 0),  # TRUE if detected in any method for the host
+    .groups = "drop"
+  )
+
+
+taxon_prevalence <- host_taxa_presence %>%
+  group_by(Taxon) %>%
+  summarise(HostPrevalence = mean(Present), .groups = "drop")
+
+# --- Compute intensity averaged across methods ---
+taxon_intensity <- otu_long %>%
+  filter(Abundance > 0) %>%
+  group_by(Taxon, Host) %>%
+  summarise(Intensity = mean(Abundance), .groups = "drop") %>%  # average across methods per host
+  group_by(Taxon) %>%
+  summarise(MeanIntensity = mean(Intensity), .groups = "drop")  # overall average across hosts
+
+# --- Merge into summary dataframe ---
+summary_df <- left_join(taxon_prevalence, taxon_intensity, by = "Taxon")
+
+# Optional: Add Genus or Species column for labeling
+summary_df <- left_join(summary_df, tax %>% rownames_to_column("Taxon") %>% select(Taxon, species), by = "Taxon")
+
+
+summary_df$MeanIntensityPerc <- summary_df$MeanIntensity / 3413
+
+
+
+
+
+# --- Plot intensity vs. host-level prevalence ---
+ggplot(summary_df, aes(x = HostPrevalence, y = MeanIntensityPerc)) +
+  geom_point(size = 3, alpha = 0.8, color = "steelblue") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Intensity vs. Prevalence Across Taxa",
+    x = "Prevalence",
+    y = "Intensity"
+  )
+
+
+
+
+
+
+
+cluster_data <- summary_df %>%
+  select(HostPrevalence, MeanIntensity) %>%
+  scale()
+
+
+
+set.seed(106)
+k_clusters <- kmeans(cluster_data, centers = 2)  # adjust number of clusters
+
+summary_df$Cluster <- factor(k_clusters$cluster)
+
+
+summary_df$Cluster <- ifelse(summary_df$Cluster == 2, "Common", "Rare")
+
+
+library(ggplot2)
+
+ggplot(summary_df, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Cluster)) +
+  geom_point(size = 3, alpha = 0.8) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Taxa Clustering: Prevalence vs. Intensity",
+    x = "Host-Level Prevalence",
+    y = "Intensity (Mean Abundance Where Present)",
+    color = "Cluster"
+  )
+
+
+
+
+
+
+## for genus
+
+
+ps_rarefied_g <- ps_rarified_g
+
+otu_g <- as.data.frame(otu_table(ps_rarefied_g))
+tax_g <- as.data.frame(tax_table(ps_rarefied_g))
+meta_g <- as.data.frame(sample_data(ps_rarefied_g))
+
+
+otu_long_g <- otu_g %>%
+  as.data.frame() %>%
+  rownames_to_column("Sample_name") %>%
+  pivot_longer(-Sample_name, names_to = "Taxon", values_to = "Abundance") %>%
+  left_join(meta_g, by = "Sample_name") %>%
+  left_join(tax %>% rownames_to_column("Taxon"), by = "Taxon")  # includes genus/species
+
+
+# Collapse sample-level data to host-level detection
+host_taxa_presence_g <- otu_long_g %>%
+  group_by(Host, Taxon) %>%
+  summarise(
+    Present = any(Abundance > 0),  # TRUE if detected in any method for the host
+    .groups = "drop"
+  )
+
+
+taxon_prevalence_g <- host_taxa_presence_g %>%
+  group_by(Taxon) %>%
+  summarise(HostPrevalence = mean(Present), .groups = "drop")
+
+# --- Compute intensity averaged across methods ---
+taxon_intensity_g <- otu_long_g %>%
+  filter(Abundance > 0) %>%
+  group_by(Taxon, Host) %>%
+  summarise(Intensity = mean(Abundance), .groups = "drop") %>%  # average across methods per host
+  group_by(Taxon) %>%
+  summarise(MeanIntensity = mean(Intensity), .groups = "drop")  # overall average across hosts
+
+# --- Merge into summary dataframe ---
+summary_df_g <- left_join(taxon_prevalence_g, taxon_intensity_g, by = "Taxon")
+
+# Optional: Add Genus or Species column for labeling
+summary_df_g <- left_join(summary_df_g, tax %>% rownames_to_column("Taxon") %>% select(Taxon, genus), by = "Taxon")
+
+
+summary_df_g$MeanIntensityPerc <- summary_df_g$MeanIntensity / 3413
+
+
+
+# --- Plot intensity vs. host-level prevalence ---
+ggplot(summary_df_g, aes(x = HostPrevalence, y = MeanIntensityPerc)) +
+  geom_point(size = 3, alpha = 0.8, color = "steelblue") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Intensity vs. Prevalence Across Taxa",
+    x = "Prevalence (Fraction of Hosts)",
+    y = "Intensity (Mean Abundance Where Present)"
+  )
+
+
+
+
+cluster_data_g <- summary_df_g %>%
+  select(HostPrevalence, MeanIntensity) %>%
+  scale()
+
+
+
+set.seed(106)
+k_clusters_g <- kmeans(cluster_data_g, centers = 2)  # adjust number of clusters
+
+summary_df_g$Cluster <- factor(k_clusters_g$cluster)
+
+summary_df_g$Cluster <- ifelse(summary_df_g$Cluster == 2, "Common", "Rare")
+
+
+library(ggplot2)
+
+ggplot(summary_df_g, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Cluster)) +
+  geom_point(size = 3, alpha = 0.8) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Taxa Clustering: Prevalence vs. Intensity",
+    x = "Host-Level Prevalence",
+    y = "Intensity (Mean Abundance Where Present)",
+    color = "Cluster"
+  )
+
+
+
+# if any of the common or rare are detected
+
+otu_binary <- otu_table(ps_rarefied)
+otu_binary[otu_binary > 0] <- 1  # convert counts to 0/1
+otu_binary <- as.data.frame(otu_binary)
+
+
+taxon_labels <- summary_df %>% select(Taxon, Cluster)  # "Common"/"Rare"
+
+# Create index of common taxa
+common_taxa <- taxon_labels %>% filter(Cluster == "Common") %>% pull(Taxon)
+rare_taxa   <- taxon_labels %>% filter(Cluster == "Rare") %>% pull(Taxon)
+
+
+# Add sample metadata
+meta <- as.data.frame(sample_data(ps_rarefied))
+meta$SampleID <- rownames(meta)
+
+# Get detection flags
+detection_df <- data.frame(
+  SampleID = rownames(otu_binary),
+  CommonDetected = rowSums(otu_binary[, common_taxa]) > 0,
+  RareDetected   = rowSums(otu_binary[, rare_taxa]) > 0
+)
+
+# Merge with metadata to include host and method
+merged_df <- left_join(detection_df, meta, by = "SampleID")
+
+# Convert logical to binary
+merged_df <- merged_df %>%
+  mutate(
+    CommonDetected = as.integer(CommonDetected),
+    RareDetected = as.integer(RareDetected)
+  )
+
+
+glm(CommonDetected ~ Sample_type, family = binomial, data = merged_df)
+glm(RareDetected ~ Sample_type, family = binomial, data = merged_df)
+
+
+
+
+# editing to see if the #s change when just summed
+
+otu_binary <- otu_table(ps_rarefied)
+otu_binary[otu_binary > 0] <- 1  # convert counts to 0/1
+otu_binary <- as.data.frame(otu_binary)
+
+
+taxon_labels <- summary_df %>% select(Taxon, Cluster)  # "Common"/"Rare"
+
+# Create index of common taxa
+common_taxa <- taxon_labels %>% filter(Cluster == "Common") %>% pull(Taxon)
+rare_taxa   <- taxon_labels %>% filter(Cluster == "Rare") %>% pull(Taxon)
+
+
+# Get detection flags
+richness_c_r_df <- data.frame(
+  Sample_name = rownames(otu_binary),
+  CommonDetected = rowSums(otu_binary[, common_taxa]),
+  RareDetected   = rowSums(otu_binary[, rare_taxa])
+)
+
+# Merge with metadata to include host and method
+merged_c_r_df <- left_join(richness_c_r_df, metadata_final, by = "Sample_name")
+
+
+common_sum <- glm(CommonDetected ~ Sample_type, family = poisson(), data = merged_c_r_df)
+summary(common_sum)
+emmeans(common_sum, pairwise ~ Sample_type)
+
+rare_sum <- glm(RareDetected ~ Sample_type + EPG_DC_dry, family = poisson(), data = merged_c_r_df)
+summary(rare_sum)
+emmeans(rare_sum, pairwise ~ Sample_type)
+
+
+
+
+
+# again for genus
+# if any of the common or rare are detected
+
+# this one not fixed all the way
+otu_binary_g <- otu_table(ps_rarefied_g)
+otu_binary_g[otu_binary_g > 0] <- 1  # convert counts to 0/1
+otu_binary_g <- as.data.frame(otu_binary_g)
+
+
+taxon_labels_g <- summary_df_g %>% select(Taxon, Cluster)  # "Common"/"Rare"
+
+# Create index of common taxa
+common_taxa_g <- taxon_labels_g %>% filter(Cluster == "Common") %>% pull(Taxon)
+rare_taxa_g   <- taxon_labels_g %>% filter(Cluster == "Rare") %>% pull(Taxon)
+
+
+# Add sample metadata
+meta <- as.data.frame(sample_data(ps_rarefied))
+meta$SampleID <- rownames(meta)
+
+# Get detection flags
+detection_df <- data.frame(
+  SampleID = rownames(otu_binary),
+  CommonDetected = rowSums(otu_binary[, common_taxa]) > 0,
+  RareDetected   = rowSums(otu_binary[, rare_taxa]) > 0
+)
+
+# Merge with metadata to include host and method
+merged_df <- left_join(detection_df, meta, by = "SampleID")
+
+# Convert logical to binary
+merged_df <- merged_df %>%
+  mutate(
+    CommonDetected = as.integer(CommonDetected),
+    RareDetected = as.integer(RareDetected)
+  )
+
+
+glm(CommonDetected ~ Sample_type, family = binomial, data = merged_df)
+glm(RareDetected ~ Sample_type, family = binomial, data = merged_df)
+
+
+
+
+# editing to see if the #s change when just summed
+
+otu_binary_g <- otu_table(ps_rarefied_g)
+otu_binary_g[otu_binary_g > 0] <- 1  # convert counts to 0/1
+otu_binary_g <- as.data.frame(otu_binary_g)
+
+
+taxon_labels_g <- summary_df_g %>% select(Taxon, Cluster)  # "Common"/"Rare"
+
+# Create index of common taxa
+common_taxa_g <- taxon_labels_g %>% filter(Cluster == "Common") %>% pull(Taxon)
+rare_taxa_g   <- taxon_labels_g %>% filter(Cluster == "Rare") %>% pull(Taxon)
+
+
+# Get detection flags
+richness_c_r_df_g <- data.frame(
+  Sample_name = rownames(otu_binary_g),
+  CommonDetected = rowSums(otu_binary_g[, common_taxa_g]),
+  RareDetected   = rowSums(otu_binary_g[, rare_taxa_g])
+)
+
+# Merge with metadata to include host and method
+merged_c_r_df_g <- left_join(richness_c_r_df_g, metadata_final, by = "Sample_name")
+
+
+common_sum_g <- glm(CommonDetected ~ Sample_type, family = poisson(), data = merged_c_r_df_g)
+summary(common_sum_g)
+emmeans(common_sum_g, pairwise ~ Sample_type)
+
+rare_sum_g <- glm(RareDetected ~ Sample_type, family = poisson(), data = merged_c_r_df_g)
+summary(rare_sum_g)
+emmeans(rare_sum_g, pairwise ~ Sample_type)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
