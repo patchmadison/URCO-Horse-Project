@@ -16,6 +16,7 @@ library(vegan)
 library(betareg)
 library(statmod)
 library(multcomp)
+library(lmtest)
 set.seed(106)
 
 
@@ -266,17 +267,32 @@ metadata_final %>%
 # EPG ~ L3 stats
 epg_l3_data <- metadata_final[c('Host', 'EPG_DC_wet', 'EPG_DC_dry', 'EPG_McM_wet', 'EPG_McM_dry', 'Number_of_L3_counts', 'Avg_L3_count')]
 epg_l3_data <- unique(epg_l3_data)
+epg_l3_data$Weight <- c(41.58,
+40.11,
+40.02,
+40.34,
+39.66,
+41.83,
+40.08,
+40.03,
+39.97,
+40.25,
+40.23,
+40.1,
+40.05)
+
 L3_imputed <- ifelse(epg_l3_data$Avg_L3_count == 0, 0.25, epg_l3_data$Avg_L3_count)
 epg_l3_data$Avg_L3_count_imputed <- L3_imputed
 
-epg_l3 <- glm(data = epg_l3_data, formula = EPG_DC_wet ~ Avg_L3_count_imputed, family = Gamma(link = "log"))
-
-summary(epg_l3)
-
+epg_l3_data$Total_L3 <- L3_imputed * (5000 / 30)
+epg_l3_data$L3_per_gram <- epg_l3_data$Total_L3 / epg_l3_data$Weight
 
 
-plot(epg_l3)
+epgxl3 <- lm(L3_per_gram ~ EPG_DC_wet, epg_l3_data)
 
+summary(epgxl3)
+
+cor.test(epg_l3_data$L3_per_gram, epg_l3_data$EPG_DC_wet)
 
 
 
@@ -522,6 +538,11 @@ summary(asvxmethodmdl)
 
 lrtest(asvxmethodmdl, asvxepgxmethodmdl) # no significant difference 
 
+asvx1mdl <- betareg(Evenness_asv ~ 1, data = metadata_rarefied)
+summary(asvx1mdl)
+
+lrtest(asvxmethodmdl, asvx1mdl) # no significant difference
+
 # testing model significance sp evenness
 spxepgxmethodmdl <- betareg(Evenness_sp ~ Sample_type + EPG_DC_dry,data = metadata_rarefied)
 summary(spxepgxmethodmdl)
@@ -531,6 +552,11 @@ summary(spxmethodmdl)
 
 lrtest(spxmethodmdl, spxepgxmethodmdl) # no significant difference
 
+spx1mdl <- betareg(Evenness_sp ~ 1, data = metadata_rarefied)
+summary(spx1mdl)
+
+lrtest(spxmethodmdl, spx1mdl) # no significant difference
+
 # testing model significance g evenness
 gxepgxmethodmdl <- betareg(Evenness_g ~ Sample_type + EPG_DC_dry,data = metadata_rarefied)
 summary(gxepgxmethodmdl)
@@ -538,7 +564,12 @@ summary(gxepgxmethodmdl)
 gxmethodmdl <- betareg(Evenness_g ~ Sample_type,data = metadata_rarefied)
 summary(gxmethodmdl)
 
-lrtest(gxmethodmdl, gxepgxmethodmdl) # no significant difference  
+lrtest(gxmethodmdl, gxepgxmethodmdl) # no significant difference 
+
+gx1mdl <- betareg(Evenness_g ~ 1, data = metadata_rarefied)
+summary(gx1mdl)
+
+lrtest(gxmethodmdl, gx1mdl) # no significant difference
 
 
 
@@ -748,6 +779,74 @@ jac <- phyloseq::distance(psa, method = "jaccard")
 adonis2(jac ~ method, data = sam, permutations = 999)#no sig dif
 
 #BZs 12,11,8 seem to be more different. Mostly grouped by host, not method
+
+
+
+
+library(vegan)
+psa_sp <- ps_final_sp
+sd_sp<-data.frame(sample_data(psa_sp))
+colnames(sd_sp)<-c("sample", "method", "host")
+sample_data(psa_sp)<-sd_sp
+
+ord_sp <- ordinate(psa_sp, "PCoA", "bray")
+p1_sp = plot_ordination(psa_sp, ord_sp,  type="samples", color="host", shape="method") +
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1_sp)
+
+bray_sp <- phyloseq::distance(psa_sp, method = "bray")
+sam_sp <- data.frame(sample_data(psa_sp))
+adonis2(bray_sp ~ method, data = sam_sp, permutations = 999)#no sig dif
+
+ord2_sp <- ordinate(psa_sp, "PCoA", "jaccard")
+p1_sp = plot_ordination(psa_sp, ord2_sp,  type="samples", color="host", shape="method")+
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1)
+
+jac_sp <- phyloseq::distance(psa_sp, method = "jaccard")
+adonis2(jac_sp ~ method, data = sam_sp, permutations = 999)#no sig dif
+
+#BZs 12,11,8 seem to be more different. Mostly grouped by host, not method
+
+psa_g <- ps_final_g
+sd_g<-data.frame(sample_data(psa_g))
+colnames(sd_g)<-c("sample", "method", "host")
+sample_data(psa_g)<-sd_g
+
+ord_g <- ordinate(psa_g, "PCoA", "bray")
+p1_g = plot_ordination(psa_g, ord_g,  type="samples", color="host", shape="method") +
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1_g)
+
+bray_g <- phyloseq::distance(psa_g, method = "bray")
+sam_g <- data.frame(sample_data(psa_g))
+adonis2(bray_g ~ method, data = sam_g, permutations = 999)#no sig dif
+
+ord2_g <- ordinate(psa_g, "PCoA", "jaccard")
+p1_g = plot_ordination(psa_g, ord2_g,  type="samples", color="host", shape="method")+
+  geom_point(size = 4) +
+  geom_text(aes(label = host), vjust = 1.5, hjust = 0.5, size = 3) +
+  theme_minimal()
+print(p1)
+
+jac_g <- phyloseq::distance(psa_g, method = "jaccard")
+adonis2(jac_g ~ method, data = sam_g, permutations = 999)#no sig dif
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1570,7 +1669,7 @@ ggplot(summary_df, aes(x = HostPrevalence, y = MeanIntensityPerc)) +
 
 
 cluster_data <- summary_df %>%
-  select(HostPrevalence, MeanIntensity) %>%
+  dplyr::select(HostPrevalence, MeanIntensity) %>%
   scale()
 
 
@@ -1586,7 +1685,7 @@ summary_df$Cluster <- ifelse(summary_df$Cluster == 2, "Common", "Rare")
 
 library(ggplot2)
 
-ggplot(summary_df, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Cluster)) +
+prevxintensity <- ggplot(summary_df, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Cluster)) +
   geom_point(size = 3, alpha = 0.8) +
   theme_minimal(base_size = 14) +
   labs(
@@ -1597,7 +1696,9 @@ ggplot(summary_df, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Cluste
   )
 
 
+ggsave(plot=prevxintensity, height = 169,width=169, dpi=300, units = 'mm', filename = "C:/Users/Weinstein Lab/Desktop/URCO-Horse-Project/prevalence_intensity.pdf", useDingbats=FALSE)
 
+cor.test(summary_df$HostPrevalence, summary_df$MeanIntensityPerc)
 
 
 
@@ -1665,7 +1766,7 @@ ggplot(summary_df_g, aes(x = HostPrevalence, y = MeanIntensityPerc)) +
 
 
 cluster_data_g <- summary_df_g %>%
-  select(HostPrevalence, MeanIntensity) %>%
+  dplyr::select(HostPrevalence, MeanIntensity) %>%
   scale()
 
 
@@ -1680,7 +1781,7 @@ summary_df_g$Cluster <- ifelse(summary_df_g$Cluster == 2, "Common", "Rare")
 
 library(ggplot2)
 
-ggplot(summary_df_g, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Cluster)) +
+prevxintensity_g <- ggplot(summary_df_g, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Cluster)) +
   geom_point(size = 3, alpha = 0.8) +
   theme_minimal(base_size = 14) +
   labs(
@@ -1689,6 +1790,12 @@ ggplot(summary_df_g, aes(x = HostPrevalence, y = MeanIntensityPerc, color = Clus
     y = "Intensity (Mean Abundance Where Present)",
     color = "Cluster"
   )
+
+
+ggsave(plot=prevxintensity_g, height = 169,width=169, dpi=300, units = 'mm', filename = "C:/Users/Weinstein Lab/Desktop/URCO-Horse-Project/prevalence_intensity_g.pdf", useDingbats=FALSE)
+
+
+cor.test(summary_df_g$HostPrevalence, summary_df_g$MeanIntensityPerc)
 
 
 
