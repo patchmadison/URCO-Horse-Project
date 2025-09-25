@@ -1,3 +1,7 @@
+# All analyses performed within this script
+
+
+
 # libraries needed
 library(DECIPHER)
 library(dada2)
@@ -17,6 +21,8 @@ library(betareg)
 library(statmod)
 library(multcomp)
 library(lmtest)
+
+# seed set for replication capabilities 
 set.seed(106)
 
 
