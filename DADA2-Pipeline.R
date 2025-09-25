@@ -1,3 +1,7 @@
+# Code based on: https://www.nemabiome.ca/dada2_workflow
+
+
+
 # libraries needed
 library(DECIPHER)
 library(dada2)
@@ -7,24 +11,31 @@ library(ggplot2)
 library(stringr)
 library(readr)
 library(vegan)
+
+# seed set for replication capabilities 
 set.seed(106)
 
+# Path to Miseq_Run files, adjust as needed
+path <- "~/Miseq_Run"
 
-path <- "C:/Users/madis/OneDrive/Documents/URCO-Horse-Project/Miseq_Run"
+# Define forward files vs reverse files
 fwd_files <- sort(list.files(path, pattern = "R1", full.names = T))
 rev_files <- sort(list.files(path, pattern = "R2", full.names = T))
 
+# extract sample names from file names
 samples = str_extract(basename(fwd_files), "^[^_]+")
 
+# assign sample names to forward and reverse files
 names(fwd_files) <- samples
 names(rev_files) <- samples
 
+# Define primer sequences and reverse complements
 fwd_primer <- "ACGTCTGGTTCAGGGTTGTT"
 rev_primer <- "TTAGTTTCTTTTCCTCCGCT"
 fwd_primer_rev <- as.character(reverseComplement(DNAStringSet(fwd_primer)))
 rev_primer_rev <- as.character(reverseComplement(DNAStringSet(rev_primer)))
 
-
+# confirm that primer is detected by counter function
 count_primers <- function(primer, filename) {
   num_hits <- vcountPattern(primer, sread(readFastq(filename)), fixed = F)
   return(sum(num_hits> 0))
@@ -34,10 +45,13 @@ count_primers(rev_primer, rev_files[[1]])
 
 
 
-## Primer Removal
-cutadapt <- path.expand("C:/Users/madis/OneDrive/Desktop/cutadapt.exe")
+## Primer Removal 
+# via cutadapt
+cutadapt <- path.expand("~/cutadapt.exe")
+#test that it is downloaded and works
 system2(cutadapt, args = "--version")
 
+# output directory to store clipped files
 cut_dir <- file.path(path, "cutadapt")
 if(!dir.exists(cut_dir)) dir.create(cut_dir)
 
@@ -47,11 +61,23 @@ rev_cut <- file.path(cut_dir, basename(rev_files))
 names(fwd_cut) <- samples
 names(rev_cut) <- samples
 
-
+#log files 
 cut_logs <- path.expand(file.path(cut_dir, paste0(samples, ".log")))
+
+# cut adapt parameters
+# -g: sequence to trim off the 5' end of the forward read (forward primer)
+# -a: sequence to trim off the 3' end of the forward read (reverse complemented reverse primer)
+# -G: sequence to trim off the 5' end of the reverse read (reverse primer)
+# -A: sequence to trim off the 3' end of the reverse read (reverse complemented forward primer)
+# -n: remove multiple primer hits
+# --discard- untrimmed: only keep reads that contain a primer
+
+
 cutadapt_args <- c("-g", fwd_primer, "-a", rev_primer_rev, 
               "-G", rev_primer, "-A", fwd_primer_rev, 
               "-n", 2, "--discard-untrimmed")
+
+# loop through files with cutadapt
 for(i in seq_along(fwd_files)) {
   system2(cutadapt,
           args = c(cutadapt_args,
@@ -63,11 +89,14 @@ head(list.files(cut_dir))
 
 
 ##Quality filtering
+
+# check quality of first two reads
 plotQualityProfile(fwd_cut[1:2]) + ggtitle("Forward")
 
 plotQualityProfile(rev_cut[1:2]) + ggtitle("Reverse")
 
 # Filter Reads
+# output directory to store filtered files
 filt_dir <- file.path(path, "filtered")
 if(!dir.exists(filt_dir)) dir.create(filt_dir)
 
@@ -92,13 +121,17 @@ head(filtered_out)
 
 
 ## Main workflow
+
+# DADA2 learns error profile
 err_fwd <- learnErrors(fwd_filt, multithread = T)
 err_rev <- learnErrors(rev_filt, multithread = T)
 plotErrors(err_fwd, nominalQ = T)
 
+# denoise sequences
 dada_fwd <- dada(fwd_filt, err = err_fwd, multithread = T)
 dada_rev <- dada(rev_filt, err = err_rev, multithread = T)
 
+# merge paired-end reads
 mergers <- mergePairs(
   dadaF = dada_fwd,
   dadaR = dada_rev,
@@ -108,18 +141,25 @@ mergers <- mergePairs(
   verbose = T
 )
 
+# create sequence table
 seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
 
+# remove chimeras
 seqtab_nochim <- removeBimeraDenovo(seqtab, method = "consensus", 
                                     multithread = T, verbose = T)
 dim(seqtab_nochim)
 
+# saved after chimeras removed for ease of repeating steps afterwards
 saveRDS(seqtab_nochim, file = "seqtab_nochim_28June24.rds")
 
+
+
 ## How did we do?
+
 table(nchar(getSequences(seqtab_nochim)))
 
+# funciton to get number of sequences
 getN <- function(x) sum(getUniques(x))
 track <- cbind(
   filtered_out,
@@ -128,6 +168,8 @@ track <- cbind(
   sapply(mergers, getN),
   rowSums(seqtab_nochim)
 )
+
+# shows number of reads at each step
 colnames(track) <- c("raw", "filtered", "denoised_fwd", "denoised_rev", "merged", "no_chim")
 rownames(track) <- samples
 track
@@ -135,22 +177,32 @@ saveRDS(track, file = "track_28June24.rds")
 
 track <- readRDS("track_28June24.rds")
 
-## sum of total reads raw all samples and controls except WAS and duplicates: 790996
+
+
+### The following code included additional samples unrelated to the project
+### therefore indexing and certain sample names are not relevant to published research
+
+
+
+## sum of total reads raw all samples and controls (except WAS -- unrelated samples) and duplicates: 790996
 sum(track[c(-12,-25,-32,-48:-52),"raw"])
 
 ## percent of reads when finished filtered: 75.81%
 (sum(track[c(-12,-25,-32,-48:-52),"no_chim"])/sum(track[c(-12,-25,-32,-48:-52),"raw"]))
 
-## average # of reads for samples (no controls or WAS): 15,447.1
+## average # of reads for samples (no controls or WAS -- unrelated samples): 15,447.1
 ## standard deviation: 7,246.598
 mean(track[c(-12,-25,-32,-43:-52),"no_chim"])
 sd(track[c(-12,-25,-32,-43:-52),"no_chim"])
 
 
 ## Assign taxonomy with IDTAXA
+
+# train and tax have been pulled from nemabiome website
 train <- readDNAStringSet("~/Practice Dada2 pipeline/Nematode_ITS2_1.0.0_idtaxa.fasta")
 tax <- read_tsv("~/Practice Dada2 pipeline/Nematode_ITS2_1.0.0_idtaxa.tax")
 
+# train the classifier
 trainingSet <- LearnTaxa(train, names(train), tax)
 saveRDS(trainingSet, file = "trainingSet_28June24.rds")
 
@@ -160,7 +212,8 @@ trainingSet <- readRDS("trainingSet_28June24.rds")
 
 dna <- DNAStringSet(getSequences(seqtab_nochim))
 
-## try with a lowerer threshold, see how it compares. load in training set and dna
+## tried with a lower threshold, see how it compares. load in training set and dna
+## this threshold was used for subsequent analyses
 
 idtaxa_lowerthreshold <- IdTaxa(dna,
                  trainingSet,
@@ -186,7 +239,7 @@ taxid_lowerthreshold <- taxid_lowerthreshold[,-1]
 
 write.csv(taxid_lowerthreshold, file = "taxonomy_id_threshold_50_raw_18July24.csv")
 
-
+# originally recommended parameters from nemabiome website, but threshold lowered for subsequent analyses
 idtaxa <- IdTaxa(dna,
                  trainingSet,
                  strand = "both",
@@ -231,6 +284,8 @@ rownames(taxid) <- asvs
 colnames(seqtab_nochim) <- asvs
 names(dna) <- asvs
 
+# creating phyloseq objects
+
 # original physeq
 physeq = phyloseq(
   otu_table(seqtab_nochim, taxa_are_rows = F),
@@ -263,6 +318,8 @@ write_rds(physeq_ltt, file = "physeq_lower_taxonomy_threshold_19July24.rds")
 
 
 physeq_ltt <- readRDS("physeq_lower_taxonomy_threshold_19July24.rds")
+
+# tried but not used in analyses
 
 library(phangorn)
 alignment <- AlignSeqs(dna, anchor = NA)
@@ -305,7 +362,7 @@ for (asv in 1:479) {
 asv_sums
 
 
-# remove was samples
+# remove WAS samples (not relevant samples)
 WAS <- c("WAS03", "WAS06", "WAS07", "WAS11", "WAS14")
 physeq_ltt_filt <- subset_samples(physeq_ltt, !Host %in% WAS)  
 
@@ -382,7 +439,7 @@ sd(ctrls_reads) ## sd 7.95
 ## remove asvs with less than 15 reads in sample 
 head(otu_table(physeq_ltt_filt), 10)
 
-# if greater than 16, keep value, else change to 0
+# if greater than 15, keep value, else change to 0
 rm_low <- function(x){
   ifelse(x >= 16, x, 0)
 }
@@ -429,104 +486,4 @@ psa <- read_rds("psa_filtered_29Aug24.rds")
 
 
 
-
-########Reads stats
-
-
-plot_bar(subset_samples(psa, Sample_type == "Fecal"), x= "Sample_name")
-
-plot_bar(subset_samples(psa, Sample_type == "Swab"), x= "Sample_name")
-
-plot_bar(subset_samples(psa, Sample_type == "Larva"), x= "Sample_name")
-
-
-ps_final <- subset_samples(psa, sample_sums(psa) > 1000)
-
-saveRDS(ps_final, "ps_final_12Sept24.rds")
-
-
-
-
-####################things that were tried but not used####################
-
-
-## initial processing that not used now
-# number of reads with NA for phylum
-psNA <- subset_taxa(physeq, is.na(phylum))
-plot_bar(psNA, x="Sample_name")
-# plot of reads associated with genus labelled
-plot_bar(physeq, x="Sample_name", fill="genus")
-
-# number of reads with NA for phylum ** lower threshold
-psNA_ltt <- subset_taxa(physeq_ltt, is.na(phylum))
-plot_bar(psNA_ltt, x="Sample_name")
-# plot of reads associated with genus labelled ** lower threshold
-plot_bar(physeq_ltt, x="Sample_name", fill="genus")
-plot_bar(physeq_ltt, x="Sample_name", fill="species")
-
-physeq_ltt_filt <- subset_taxa(physeq_ltt, !is.na(phylum))
-plot_bar(physeq_ltt_filt, x = "Sample_name")
-
-spsCont <- subset_samples(physeq_ltt_filt, Host == "CTRL")
-psC<-prune_taxa(taxa_sums(psCont)>0, psCont)
-plot_bar(psC, x = "Sample_name", fill="genus")
-
-
-head(sample_data(psNA))
-unique(sample_data(physeq)$Sample_type)
-
-prevdf = apply(X = otu_table(ps0),
-               MARGIN = ifelse(taxa_are_rows(ps0), yes = 1, no = 2),
-               FUN = function(x) {sum(x > 0)})
-prevdf = data.frame(Prevalence = prevdf, TotalAbundance = taxa_sums(ps0),
-                    tax_table(ps0))
-plyr::ddply(prevdf, "family", function(df1) {cbind(mean(df1$Prevalence), sum(df1$Prevalence))})
-ps1 = transform_sample_counts(ps0, function(x){x / sum(x)})
-plot_bar(ps1, x = "Sample_name", fill = "species")
-
-
-ptree = plot_tree(ps1, method = "treeonly", ladderize = "left")
-ptree
-
-
-
-
-
-## pruning taxa
-
-## not what was intended, so not using
-#physeq_ltt_filt <- subset_samples(physeq, Host =)
-#physeq_ltt_filt<-prune_taxa(taxa_sums(physeq_ltt)>15, physeq_ltt)
-#plot_bar(physeq_ltt_filt, x = "Sample_name", fill="genus")
-#taxa_sums(physeq_ltt_filt)
-
-### same here
-#physeq_ltt_filt <- subset_taxa(physeq_ltt, taxa_sums(physeq_ltt) > 15)
-#plot_bar(subset_samples(physeq_ltt_filt, Host =="CTRL"), x = "Sample_name", fill = "genus")
-
-
-# remove samples that had 15 reads or less AKA controls removed
-physeq_ltt_filt <- subset_samples(physeq_ltt_filt, sample_sums(physeq_ltt_filt) > 15)
-
-
-### * remove percentage of reads or certain number of reads from each sample
-
-#removed total reads with 15 or less
-physeq_ltt_filt<-prune_taxa(taxa_sums(physeq_ltt)>15, physeq_ltt)
-
-
-
-# glom species, na removed
-physeq_ltt_filt_species_glom_narm = tax_glom(physeq_ltt_filt, "species", NArm = TRUE)
-physeq_ltt_filt_species_glom_narm
-
-# glom species, na not removed
-physeq_ltt_filt_species_glom = tax_glom(physeq_ltt_filt, "species", NArm = F)
-physeq_ltt_filt_species_glom
-
-plot_bar(physeq_ltt_filt_species_glom, x="Sample_name", fill="genus")
-plot_bar(physeq_ltt_filt_species_glom, x="Sample_name", fill="species")
-
-
-### remove the LB samples no duplicates
 
